@@ -1,0 +1,50 @@
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SS_PIN 10 // Pino de seleção do RFID
+#define RST_PIN 9 // Pino de reset do RFID
+MFRC522 rfid(SS_PIN, RST_PIN); 
+
+#include <SoftwareSerial.h> 
+SoftwareSerial bluetooth(2, 3); // Pinos RX, TX para o módulo Bluetooth
+
+String entradaID = "04 A3 B2 C1"; // Substitua pelo ID do cartão para entrada
+String saidaID = "04 B3 C2 D1";   // Substitua pelo ID do cartão para saída
+
+void setup() {
+  Serial.begin(9600);   // Comunicação serial com o monitor serial
+  SPI.begin();          // Inicia a comunicação SPI
+  rfid.PCD_Init();      // Inicia o RFID
+  bluetooth.begin(9600); // Inicia comunicação com o Bluetooth
+  Serial.println("Aproxime o cartão ao leitor...");
+}
+
+void loop() {
+  // Verifica se existe um novo cartão presente
+  if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+    String conteudo = "";
+    
+    // Lê o ID do cartão RFID
+    for (byte i = 0; i < rfid.uid.size; i++) {
+      conteudo.concat(String(rfid.uid.uidByte[i] < 0x10 ? " 0" : " "));
+      conteudo.concat(String(rfid.uid.uidByte[i], HEX));
+    }
+    
+    conteudo.toUpperCase();
+    Serial.println("Cartão Detectado: " + conteudo);
+
+    // Verifica se o cartão é de entrada ou saída
+    if (conteudo == entradaID) {
+      Serial.println("Entrada registrada");
+      bluetooth.println("Entrada: " + conteudo);
+    } else if (conteudo == saidaID) {
+      Serial.println("Saída registrada");
+      bluetooth.println("Saída: " + conteudo);
+    } else {
+      Serial.println("Cartão não reconhecido");
+    }
+
+    delay(1000); // Aguarda um pouco para evitar múltiplas leituras do mesmo cartão
+    rfid.PICC_HaltA(); // Interrompe a leitura do cartão atual
+  }
+}
